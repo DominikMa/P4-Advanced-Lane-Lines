@@ -4,17 +4,16 @@ import numpy as np
 import cv2
 import glob
 import pickle
-import os.path
+from os import path, listdir
 from moviepy.editor import VideoFileClip
 from lane import Lane
-
 
 DEBUG_VARS = {"show_calibration_images": False,
               "show_original_test_images": False,
               "show_perspective_transform_images": False,
               "show_perspective_transform_reverse_images": False,
               "show_color_transform_images": False,
-              "show_processed_test_images": False,
+              "show_processed_test_images": True,
               "show_undistorted_images": False,
               "show_poly_test_images": False}
 PROCESS_IMAGES = True
@@ -39,7 +38,7 @@ xm_per_pix = 3.7/880  # meters per pixel in x dimension
 def do_camera_calibration():
     """Calculate calibration parameters for all calibration images."""
     # If calibration is saved just load it
-    if os.path.isfile(saved_camera_calibration_path):
+    if path.isfile(saved_camera_calibration_path):
         return pickle.load(open(saved_camera_calibration_path, "rb"))
 
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
@@ -128,15 +127,17 @@ def process_image(image_org):
                                                          line_right)
 
     image = draw_on_road(image_undist, binary_warped, line_left, line_right)
-    image = combine_images(image,
-                           image1=image_binary,
-                           image2=binary_warped,
-                           image3=color_warped)
+    image_combined = combine_images(image,
+                                    image1=image_binary,
+                                    image2=binary_warped,
+                                    image3=color_warped)
     if DEBUG_VARS['show_processed_test_images']:
-        cv2.imshow('processed_test_image', image)
+        cv2.imshow('processed_test_image', image_combined)
         cv2.waitKey(0)
-    image = cv2.cvtColor(image.astype(np.uint8), cv2.COLOR_BGR2RGB)
-    return image
+
+    image_combined = cv2.cvtColor(image_combined.astype(np.uint8),
+                                  cv2.COLOR_BGR2RGB)
+    return image_combined
 
 
 def combine_images(image, image1=None, image2=None, image3=None):
@@ -519,7 +520,7 @@ def draw_on_road(image_undist, binary_warped, line_left, line_right):
 camera_calibration = do_camera_calibration()
 
 if PROCESS_IMAGES:
-    for test_image_name in os.listdir("test_images/"):
+    for test_image_name in listdir("test_images/"):
         line_left = Lane()
         line_right = Lane()
 
@@ -527,8 +528,8 @@ if PROCESS_IMAGES:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         processed_image = process_image(image)
         processed_image = cv2.cvtColor(processed_image, cv2.COLOR_RGB2BGR)
-        cv2.imwrite(os.path.join('./output_images',
-                                 test_image_name),
+        cv2.imwrite(path.join('./output_images',
+                              test_image_name),
                     processed_image)
 
 if PROCESS_MOVIES:
@@ -538,6 +539,6 @@ if PROCESS_MOVIES:
         line_right = Lane()
 
         new_clip = clip.fl_image(process_image)
-        new_clip.write_videofile(os.path.join('./output_videos',
-                                              test_movie_name),
+        new_clip.write_videofile(path.join('./output_videos',
+                                           test_movie_name),
                                  audio=False)
